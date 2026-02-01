@@ -1,242 +1,94 @@
 # Lighthouse
 
-A network device discovery tool for scanning and tracking devices on your local network.
+Network device discovery tool for scanning and tracking devices on your local network.
 
-## Overview
+## Quick Start
 
-Lighthouse scans your local network using nmap to discover connected devices. It provides both a command-line interface and a web dashboard for viewing and managing discovered devices.
+### Requirements
 
-## Features
+- Go 1.19+
+- Ruby
+- nmap: `brew install nmap`
 
-- Network scanning using nmap
-- Device discovery and tracking
-- SQLite database for persistence
-- Command-line interface
-- Web dashboard for visualization
-- First seen / last seen timestamps
-- MAC address and vendor identification (with sudo)
-
-## Requirements
-
-- Go 1.19 or higher
-- Ruby (system default is fine)
-- nmap
-
-### Installing nmap
-
-**macOS:**
-```bash
-brew install nmap
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt install nmap
-```
-
-## Installation
-
-### From Source
+### Installation
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd lighthouse
 go build -o lighthouse ./cmd/lighthouse
 ```
 
-## Usage
-
-### Scanning Networks
-
-Scan your network to discover devices:
+### Usage
 
 ```bash
-# Scan default network (192.168.68.0/22)
-./lighthouse scan
+# Scan your network (auto-detects network)
+sudo ./lighthouse scan
 
 # Scan specific network
-./lighthouse scan 192.168.1.0/24
-
-# Scan with sudo to get MAC addresses and vendor info
 sudo ./lighthouse scan 192.168.1.0/24
-```
 
-### Listing Devices
-
-View discovered devices in your terminal:
-
-```bash
 ./lighthouse list
-```
 
-### Web Dashboard
-
-Start the web server and view devices in your browser:
-
-```bash
 ./lighthouse serve
-```
 
-Then open http://localhost:8080 in your browser.
+./lighthouse networks
+```
 
 ## Why sudo?
 
-Running scans with sudo provides additional information:
-
-- MAC addresses of discovered devices
-- Vendor identification from MAC address
+Running with sudo allows nmap to read the ARP table, which provides:
+- MAC addresses
+- Device vendor identification
 - More accurate device information
 
-Without sudo, you'll still see IP addresses and hostnames, but MAC addresses and vendors will be missing.
+Without sudo, you'll see IP addresses and hostnames, but MAC addresses will be missing.
+
+## Web Dashboard
+
+The dashboard shows:
+- Device counts (total, online, offline)
+- Detected networks with status
+- Device list with online/offline status
+- Auto-refresh every 30 seconds
+
+Devices are marked offline if not seen in the last 10 minutes.
 
 ## Project Structure
 
 ```
-lighthouse/
-├── cmd/lighthouse/          # Main application entry point
-├── internal/
-│   ├── scanner/            # Network scanning logic
-│   └── storage/            # SQLite database operations
-├── scripts/
-│   └── scanner.rb          # Ruby wrapper for nmap
-├── web/
-│   └── index.html          # Web dashboard
-└── data/
-    └── lighthouse.db       # SQLite database (created on first run)
-```
 
 ## How It Works
 
-1. **Ruby Scanner**: Executes nmap with XML output format
-2. **XML Parsing**: Extracts device information (IP, MAC, hostname, vendor)
-3. **JSON Conversion**: Converts data to JSON for Go to consume
-4. **Go Processing**: Saves devices to SQLite database
-5. **Web API**: Serves device data via HTTP API
-6. **Dashboard**: Displays devices in browser with auto-refresh
+1. Ruby script wraps nmap and outputs JSON
+2. Go executes Ruby script and parses results
+3. Devices saved to SQLite database
+4. Web dashboard fetches data via REST API
+5. Auto-refresh keeps data current
 
-## Database Schema
+## API Endpoints
 
-The SQLite database stores:
+- `GET /api/devices` - List all devices
+- `GET /api/stats` - Device statistics
+- `GET /api/networks` - Detected networks
 
-- IP address (unique identifier)
-- MAC address
-- Hostname
-- Vendor (from MAC OUI lookup)
-- First seen timestamp
-- Last seen timestamp
+## Database
 
-Devices are automatically updated when rescanned (UPSERT logic).
-
-## Learning Resources
-
-This project demonstrates:
-
-- **Networking**: IP addresses, CIDR notation, subnets, MAC addresses, ARP
-- **Go**: CLI with Cobra, process execution, SQLite integration, HTTP server
-- **Ruby**: System commands, XML parsing, JSON generation
-- **SQLite**: Schema design, UPSERT operations, queries
-
-## Networking Concepts
-
-### IP Addresses
-Logical addresses assigned to devices on a network (e.g., 192.168.1.100)
-
-### CIDR Notation
-Compact way to represent network ranges (e.g., 192.168.1.0/24 = 256 addresses)
-
-### MAC Addresses
-Physical hardware addresses burned into network cards (e.g., b8:27:eb:75:0e:74)
-
-### ARP Table
-Maps IP addresses to MAC addresses for local network communication
-
-### nmap
-Network scanning tool that actively probes IP addresses to discover devices
-
-## Technical Details
-
-### nmap Flags Used
-
-- `-sn`: Host discovery only (no port scan) - faster and less intrusive
-- `-T4`: Aggressive timing template for faster scanning
-- `-oX -`: Output XML to stdout for parsing
-
-### Data Flow
-
-```
-User Command
-    ↓
-Go CLI (Cobra)
-    ↓
-Ruby Scanner Script
-    ↓
-nmap (System)
-    ↓
-XML Output
-    ↓
-Ruby Parser
-    ↓
-JSON Output
-    ↓
-Go Scanner Wrapper
-    ↓
-SQLite Database
-    ↓
-Web API / CLI Output
-```
-
-## Examples
-
-### Scan a /24 network (256 addresses)
-```bash
-sudo ./lighthouse scan 192.168.1.0/24
-```
-
-### Scan a /22 network (1024 addresses)
-```bash
-sudo ./lighthouse scan 192.168.0.0/22
-```
-
-### Scan just a small range for testing
-```bash
-./lighthouse scan 192.168.1.0/28  # Only 16 addresses
-```
+SQLite database stores:
+- IP address, MAC address, hostname, vendor
+- Online/offline status
+- First seen and last seen timestamps
 
 ## Troubleshooting
 
-### "nmap: command not found"
-Install nmap using your package manager (see Requirements section)
-
-### No MAC addresses showing
-Run the scan with sudo: `sudo ./lighthouse scan <network>`
-
-### Database errors
-Ensure the `data/` directory exists and is writable
-
-### Web server won't start
-Check if port 8080 is already in use
-
-## Development
-
-### Build
+**Database permissions error:**
 ```bash
-go build -o lighthouse ./cmd/lighthouse
+sudo chown $USER data/lighthouse.db
+# Or delete and rescan:
+rm -rf data/lighthouse.db
 ```
 
-### Test Ruby scanner directly
-```bash
-ruby scripts/scanner.rb 192.168.1.0/24
-```
+**No MAC addresses:**
+Run scan with sudo: `sudo ./lighthouse scan`
 
-### Test Go modules
-```bash
-go test ./...
-```
-
-## License
-
-MIT
-
-## Author
-
-Built as a learning project for understanding networking concepts, Go development, and network scanning tools.
+**Port 8080 in use:**
+The web server uses port 8080 by default
