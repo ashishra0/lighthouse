@@ -53,8 +53,6 @@ The dashboard shows:
 
 Devices are marked offline if not seen in the last 10 minutes.
 
-## Project Structure
-
 ```
 
 ## How It Works
