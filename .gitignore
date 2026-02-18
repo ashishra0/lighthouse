@@ -1,33 +1,28 @@
-# Binaries
+
 /lighthouse
 *.exe
 *.dll
 *.so
 *.dylib
 
-# Database
 data/
 *.db
 *.db-shm
 *.db-wal
 
-# Go
 *.test
 *.out
 go.work
 
-# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
 .DS_Store
 Thumbs.db
 
-# Logs
 *.log
 /tmp/
 
